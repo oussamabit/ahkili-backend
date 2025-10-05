@@ -32,6 +32,7 @@ class PostResponse(BaseModel):
     content: str
     user_id: int
     community_id: Optional[int]
+    image_url: Optional[str] = None  
     created_at: datetime
     
     class Config:
