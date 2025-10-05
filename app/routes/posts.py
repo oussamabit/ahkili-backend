@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 from app import crud, schemas
 from app.database import get_db
+from app.services.upload import delete_image
 
 router = APIRouter(prefix="/posts", tags=["posts"])
 
@@ -42,7 +43,13 @@ def delete_post(post_id: int, user_id: int, db: Session = Depends(get_db)):
     if db_post.user_id != user_id:
         raise HTTPException(status_code=403, detail="Not authorized to delete this post")
     
-    crud.delete_post(db, post_id=post_id)
+    # Delete post and get image_url
+    image_url = crud.delete_post(db, post_id=post_id)
+    
+    # Delete image from Cloudinary if exists
+    if image_url:
+        delete_image(image_url)
+    
     return {"message": "Post deleted successfully"}
 
 @router.get("/user/{user_id}", response_model=List[schemas.PostResponse])

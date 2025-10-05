@@ -67,10 +67,16 @@ def create_post(db: Session, post: schemas.PostCreate, user_id: int):
 def delete_post(db: Session, post_id: int):
     post = db.query(models.Post).filter(models.Post.id == post_id).first()
     if post:
+        # Store image_url before deleting
+        image_url = post.image_url
+        
+        # Delete post from database
         db.delete(post)
         db.commit()
-        return True
-    return False
+        
+        # Return image_url so we can delete it from Cloudinary
+        return image_url
+    return None
 
 # ============= COMMENT CRUD =============
 def get_comments(db: Session, post_id: int):
