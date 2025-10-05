@@ -24,6 +24,7 @@ class PostCreate(BaseModel):
     title: str
     content: str
     community_id: Optional[int] = None
+    image_url: Optional[str] = None
 
 class PostResponse(BaseModel):
     id: int
