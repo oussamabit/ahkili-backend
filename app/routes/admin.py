@@ -1,9 +1,17 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.database import get_db, engine, Base
-from app import models
+from app import models, crud, schemas
+from typing import List
 
 router = APIRouter(prefix="/admin", tags=["admin"])
+
+def verify_admin(user_id: int, db: Session = Depends(get_db)):
+    """Verify user is admin or moderator"""
+    user = crud.get_user(db, user_id)
+    if not user or user.role not in ['admin', 'moderator']:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    return user
 
 @router.post("/init-db")
 def initialize_database():
@@ -84,3 +92,127 @@ def seed_communities(db: Session = Depends(get_db)):
         "created": created,
         "message": f"Created {len(created)} communities"
     }
+
+# ============= USER MANAGEMENT =============
+@router.get("/users", response_model=List[schemas.UserWithRole])
+def get_all_users(
+    admin_id: int,
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db)
+):
+    verify_admin(admin_id, db)
+    return crud.get_all_users(db, skip=skip, limit=limit)
+
+@router.post("/promote-user")
+def promote_user(
+    admin_id: int,
+    user_id: int,
+    role: str,
+    db: Session = Depends(get_db)
+):
+    admin = verify_admin(admin_id, db)
+    if admin.role != 'admin':
+        raise HTTPException(status_code=403, detail="Only admins can promote users")
+    
+    if role not in ['user', 'moderator', 'admin', 'doctor']:
+        raise HTTPException(status_code=400, detail="Invalid role")
+    
+    user = crud.promote_user(db, user_id=user_id, role=role)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    return {"success": True, "user": user}
+
+@router.post("/ban-user")
+def ban_user(
+    admin_id: int,
+    user_id: int,
+    reason: str,
+    db: Session = Depends(get_db)
+):
+    verify_admin(admin_id, db)
+    
+    success = crud.ban_user(db, user_id=user_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Log the action
+    crud.create_moderation_log(
+        db,
+        moderator_id=admin_id,
+        action='ban_user',
+        target_type='user',
+        target_id=user_id,
+        reason=reason
+    )
+    
+    return {"success": True, "message": "User banned"}
+
+# ============= REPORTS =============
+@router.post("/reports", response_model=schemas.ReportResponse)
+def create_report(
+    report: schemas.ReportCreate,
+    user_id: int,
+    db: Session = Depends(get_db)
+):
+    return crud.create_report(
+        db,
+        reported_by=user_id,
+        target_type=report.target_type,
+        target_id=report.target_id,
+        reason=report.reason
+    )
+
+@router.get("/reports", response_model=List[schemas.ReportResponse])
+def get_reports(
+    admin_id: int,
+    status: str = None,
+    db: Session = Depends(get_db)
+):
+    verify_admin(admin_id, db)
+    return crud.get_reports(db, status=status)
+
+@router.post("/reports/{report_id}/resolve")
+def resolve_report(
+    report_id: int,
+    admin_id: int,
+    db: Session = Depends(get_db)
+):
+    verify_admin(admin_id, db)
+    
+    success = crud.resolve_report(db, report_id=report_id, resolved_by=admin_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Report not found")
+    
+    return {"success": True, "message": "Report resolved"}
+
+# ============= CONTENT MODERATION =============
+@router.delete("/posts/{post_id}/moderate")
+def moderate_delete_post(
+    post_id: int,
+    admin_id: int,
+    reason: str,
+    db: Session = Depends(get_db)
+):
+    verify_admin(admin_id, db)
+    
+    # Delete post
+    image_url = crud.delete_post(db, post_id=post_id)
+    
+    # Delete image if exists
+    if image_url:
+        from app.services.upload import delete_image
+        delete_image(image_url)
+    
+    # Log the action
+    crud.create_moderation_log(
+        db,
+        moderator_id=admin_id,
+        action='delete_post',
+        target_type='post',
+        target_id=post_id,
+        reason=reason
+    )
+    
+    return {"success": True, "message": "Post deleted"}

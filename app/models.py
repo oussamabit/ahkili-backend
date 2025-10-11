@@ -50,14 +50,16 @@ class Comment(Base):
     __tablename__ = "comments"
     
     id = Column(Integer, primary_key=True, index=True)
-    post_id = Column(Integer, ForeignKey("posts.id"), nullable=False)
+    post_id = Column(Integer, ForeignKey("posts.id", ondelete="CASCADE"), nullable=False)  
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    parent_id = Column(Integer, ForeignKey("comments.id", ondelete="CASCADE"), nullable=True)  
     content = Column(Text, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     
     # Relationships
     post = relationship("Post", back_populates="comments")
     author = relationship("User", back_populates="comments")
+    parent = relationship("Comment", remote_side=[id], backref="replies")
 
 class Hotline(Base):
     __tablename__ = "hotlines"
@@ -73,7 +75,7 @@ class PostReaction(Base):
     __tablename__ = "post_reactions"
     
     id = Column(Integer, primary_key=True, index=True)
-    post_id = Column(Integer, ForeignKey("posts.id", ondelete="CASCADE"), nullable=False)
+    post_id = Column(Integer, ForeignKey("posts.id", ondelete="CASCADE"), nullable=False)  
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     reaction_type = Column(String(20), default="like")
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -81,3 +83,27 @@ class PostReaction(Base):
     __table_args__ = (
         UniqueConstraint('post_id', 'user_id', name='unique_post_user_reaction'),
     )
+
+class Report(Base):
+    __tablename__ = "reports"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    reported_by = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"))
+    target_type = Column(String(20))  # 'user', 'post', 'comment'
+    target_id = Column(Integer, nullable=False)
+    reason = Column(Text)
+    status = Column(String(20), default='pending')  # pending, reviewed, resolved
+    created_at = Column(DateTime, default=datetime.utcnow)
+    resolved_by = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    resolved_at = Column(DateTime, nullable=True)
+
+class ModerationLog(Base):
+    __tablename__ = "moderation_logs"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    moderator_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    action = Column(String(50))  # 'delete_post', 'ban_user', 'resolve_report'
+    target_type = Column(String(20))
+    target_id = Column(Integer)
+    reason = Column(Text)
+    created_at = Column(DateTime, default=datetime.utcnow)

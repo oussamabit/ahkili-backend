@@ -80,3 +80,33 @@ class ReactionResponse(BaseModel):
 class PostResponseWithReactions(PostResponse):
     reactions_count: int = 0
     user_has_reacted: bool = False
+
+# Report schemas
+class ReportCreate(BaseModel):
+    target_type: str
+    target_id: int
+    reason: str
+
+class ReportResponse(BaseModel):
+    id: int
+    reported_by: Optional[int]
+    target_type: str
+    target_id: int
+    reason: str
+    status: str
+    created_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+# User with role
+class UserWithRole(BaseModel):
+    id: int
+    username: str
+    email: str
+    role: str
+    verified: bool
+    created_at: datetime
+    
+    class Config:
+        from_attributes = True

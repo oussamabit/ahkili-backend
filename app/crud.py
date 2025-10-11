@@ -148,3 +148,68 @@ def has_user_reacted(db: Session, post_id: int, user_id: int):
         models.PostReaction.user_id == user_id
     ).first()
     return reaction is not None
+
+
+# ============= ADMIN/MODERATOR FUNCTIONS =============
+def promote_user(db: Session, user_id: int, role: str):
+    """Promote user to moderator or admin"""
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if user:
+        user.role = role
+        db.commit()
+        db.refresh(user)
+        return user
+    return None
+
+def get_all_users(db: Session, skip: int = 0, limit: int = 100):
+    return db.query(models.User).offset(skip).limit(limit).all()
+
+def ban_user(db: Session, user_id: int):
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if user:
+        user.role = 'banned'
+        db.commit()
+        return True
+    return False
+
+# ============= REPORT CRUD =============
+def create_report(db: Session, reported_by: int, target_type: str, target_id: int, reason: str):
+    report = models.Report(
+        reported_by=reported_by,
+        target_type=target_type,
+        target_id=target_id,
+        reason=reason
+    )
+    db.add(report)
+    db.commit()
+    db.refresh(report)
+    return report
+
+def get_reports(db: Session, status: str = None):
+    query = db.query(models.Report)
+    if status:
+        query = query.filter(models.Report.status == status)
+    return query.order_by(models.Report.created_at.desc()).all()
+
+def resolve_report(db: Session, report_id: int, resolved_by: int):
+    report = db.query(models.Report).filter(models.Report.id == report_id).first()
+    if report:
+        report.status = 'resolved'
+        report.resolved_by = resolved_by
+        report.resolved_at = datetime.utcnow()
+        db.commit()
+        return True
+    return False
+
+# ============= MODERATION LOG =============
+def create_moderation_log(db: Session, moderator_id: int, action: str, target_type: str, target_id: int, reason: str):
+    log = models.ModerationLog(
+        moderator_id=moderator_id,
+        action=action,
+        target_type=target_type,
+        target_id=target_id,
+        reason=reason
+    )
+    db.add(log)
+    db.commit()
+    return log
