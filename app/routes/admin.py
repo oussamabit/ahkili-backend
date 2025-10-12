@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from app.database import get_db, engine, Base
 from app import models, crud, schemas
@@ -96,7 +96,7 @@ def seed_communities(db: Session = Depends(get_db)):
 # ============= USER MANAGEMENT =============
 @router.get("/users", response_model=List[schemas.UserWithRole])
 def get_all_users(
-    admin_id: int,
+    admin_id: int = Query(..., description="Admin ID"),
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(get_db)
@@ -106,9 +106,9 @@ def get_all_users(
 
 @router.post("/promote-user")
 def promote_user(
-    admin_id: int,
-    user_id: int,
-    role: str,
+    admin_id: int = Query(..., description="Admin ID"),
+    user_id: int = Query(..., description="User ID to promote"),
+    role: str = Query(..., description="New role: user, moderator, admin, doctor"),
     db: Session = Depends(get_db)
 ):
     admin = verify_admin(admin_id, db)
@@ -126,9 +126,9 @@ def promote_user(
 
 @router.post("/ban-user")
 def ban_user(
-    admin_id: int,
-    user_id: int,
-    reason: str,
+    admin_id: int = Query(..., description="Admin ID"),
+    user_id: int = Query(..., description="User ID to ban"),
+    reason: str = Query(..., description="Reason for ban"),
     db: Session = Depends(get_db)
 ):
     verify_admin(admin_id, db)
@@ -153,7 +153,7 @@ def ban_user(
 @router.post("/reports", response_model=schemas.ReportResponse)
 def create_report(
     report: schemas.ReportCreate,
-    user_id: int,
+    user_id: int = Query(..., description="User ID reporting"),
     db: Session = Depends(get_db)
 ):
     return crud.create_report(
@@ -166,8 +166,8 @@ def create_report(
 
 @router.get("/reports", response_model=List[schemas.ReportResponse])
 def get_reports(
-    admin_id: int,
-    status: str = None,
+    admin_id: int = Query(..., description="Admin ID"),
+    status: str = Query(None, description="Filter by status"),
     db: Session = Depends(get_db)
 ):
     verify_admin(admin_id, db)
@@ -176,7 +176,7 @@ def get_reports(
 @router.post("/reports/{report_id}/resolve")
 def resolve_report(
     report_id: int,
-    admin_id: int,
+    admin_id: int = Query(..., description="Admin ID"),
     db: Session = Depends(get_db)
 ):
     verify_admin(admin_id, db)
@@ -191,8 +191,8 @@ def resolve_report(
 @router.delete("/posts/{post_id}/moderate")
 def moderate_delete_post(
     post_id: int,
-    admin_id: int,
-    reason: str,
+    admin_id: int = Query(..., description="Admin ID"),
+    reason: str = Query(..., description="Reason for deletion"),
     db: Session = Depends(get_db)
 ):
     verify_admin(admin_id, db)
@@ -220,8 +220,8 @@ def moderate_delete_post(
 # ============= DOCTOR VERIFICATION =============
 @router.get("/doctor-verifications", response_model=List[schemas.DoctorVerificationResponse])
 def get_doctor_verifications(
-    admin_id: int,
-    status: str = None,
+    admin_id: int = Query(..., description="Admin ID"),
+    status: str = Query(None, description="Filter by status: pending, approved, rejected"),
     db: Session = Depends(get_db)
 ):
     verify_admin(admin_id, db)
@@ -234,7 +234,7 @@ def get_doctor_verifications(
 @router.post("/doctor-verifications/{verification_id}/approve")
 def approve_verification(
     verification_id: int,
-    admin_id: int,
+    admin_id: int = Query(..., description="Admin ID"),
     db: Session = Depends(get_db)
 ):
     admin = verify_admin(admin_id, db)
@@ -260,8 +260,8 @@ def approve_verification(
 @router.post("/doctor-verifications/{verification_id}/reject")
 def reject_verification(
     verification_id: int,
-    admin_id: int,
-    reason: str,
+    admin_id: int = Query(..., description="Admin ID"),
+    reason: str = Query(..., description="Reason for rejection"),
     db: Session = Depends(get_db)
 ):
     admin = verify_admin(admin_id, db)
@@ -284,8 +284,8 @@ def reject_verification(
 @router.post("/communities/{community_id}/moderators")
 def assign_community_mod(
     community_id: int,
-    user_id: int,
-    admin_id: int,
+    admin_id: int = Query(..., description="Admin ID"),
+    user_id: int = Query(..., description="User ID to assign as moderator"),
     db: Session = Depends(get_db)
 ):
     verify_admin(admin_id, db)
@@ -313,7 +313,7 @@ def assign_community_mod(
 def remove_community_mod(
     community_id: int,
     user_id: int,
-    admin_id: int,
+    admin_id: int = Query(..., description="Admin ID"),
     db: Session = Depends(get_db)
 ):
     verify_admin(admin_id, db)
@@ -327,6 +327,8 @@ def remove_community_mod(
 @router.get("/communities/{community_id}/moderators")
 def get_community_mods(
     community_id: int,
+    admin_id: int = Query(..., description="Admin ID"),
     db: Session = Depends(get_db)
 ):
+    verify_admin(admin_id, db)
     return crud.get_community_moderators(db, community_id=community_id)
