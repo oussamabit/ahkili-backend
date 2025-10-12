@@ -1,18 +1,24 @@
 from app.database import engine
 from sqlalchemy import text
 
-# Drop and recreate tables with proper cascade
+# Connect to the Railway PostgreSQL database
 with engine.connect() as conn:
-    # Backup data first (optional but recommended)
+    # Check if the column exists first (safe migration)
+    result = conn.execute(text("""
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_name='comments' AND column_name='parent_id';
+    """))
     
-    # Drop constraints
-    conn.execute(text("ALTER TABLE comments DROP CONSTRAINT IF EXISTS comments_post_id_fkey"))
-    conn.execute(text("ALTER TABLE post_reactions DROP CONSTRAINT IF EXISTS post_reactions_post_id_fkey"))
-    
-    # Recreate with CASCADE
-    conn.execute(text("ALTER TABLE comments ADD CONSTRAINT comments_post_id_fkey FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE"))
-    conn.execute(text("ALTER TABLE post_reactions ADD CONSTRAINT post_reactions_post_id_fkey FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE"))
-    
-    conn.commit()
-    
-print("✅ Database updated with CASCADE constraints!")
+    if result.fetchone() is None:
+        print("🧱 Column 'parent_id' missing — adding it now...")
+        conn.execute(text("""
+            ALTER TABLE comments
+            ADD COLUMN parent_id INTEGER REFERENCES comments(id) ON DELETE CASCADE;
+        """))
+        conn.commit()
+        print("✅ Column 'parent_id' added successfully with CASCADE!")
+    else:
+        print("⚠️ Column 'parent_id' already exists — no action taken.")
+
+print("🏁 Database update completed.")

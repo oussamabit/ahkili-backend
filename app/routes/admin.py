@@ -216,3 +216,117 @@ def moderate_delete_post(
     )
     
     return {"success": True, "message": "Post deleted"}
+
+# ============= DOCTOR VERIFICATION =============
+@router.get("/doctor-verifications", response_model=List[schemas.DoctorVerificationResponse])
+def get_doctor_verifications(
+    admin_id: int,
+    status: str = None,
+    db: Session = Depends(get_db)
+):
+    verify_admin(admin_id, db)
+    
+    if status == 'pending':
+        return crud.get_pending_verifications(db)
+    else:
+        return crud.get_all_verifications(db)
+
+@router.post("/doctor-verifications/{verification_id}/approve")
+def approve_verification(
+    verification_id: int,
+    admin_id: int,
+    db: Session = Depends(get_db)
+):
+    admin = verify_admin(admin_id, db)
+    if admin.role != 'admin':
+        raise HTTPException(status_code=403, detail="Only admins can approve verifications")
+    
+    verification = crud.approve_doctor_verification(db, verification_id=verification_id, admin_id=admin_id)
+    if not verification:
+        raise HTTPException(status_code=404, detail="Verification not found")
+    
+    # Log the action
+    crud.create_moderation_log(
+        db,
+        moderator_id=admin_id,
+        action='approve_doctor',
+        target_type='verification',
+        target_id=verification_id,
+        reason='Doctor verified'
+    )
+    
+    return {"success": True, "message": "Doctor verification approved"}
+
+@router.post("/doctor-verifications/{verification_id}/reject")
+def reject_verification(
+    verification_id: int,
+    admin_id: int,
+    reason: str,
+    db: Session = Depends(get_db)
+):
+    admin = verify_admin(admin_id, db)
+    if admin.role != 'admin':
+        raise HTTPException(status_code=403, detail="Only admins can reject verifications")
+    
+    verification = crud.reject_doctor_verification(
+        db,
+        verification_id=verification_id,
+        admin_id=admin_id,
+        reason=reason
+    )
+    
+    if not verification:
+        raise HTTPException(status_code=404, detail="Verification not found")
+    
+    return {"success": True, "message": "Doctor verification rejected"}
+
+# ============= COMMUNITY MODERATORS =============
+@router.post("/communities/{community_id}/moderators")
+def assign_community_mod(
+    community_id: int,
+    user_id: int,
+    admin_id: int,
+    db: Session = Depends(get_db)
+):
+    verify_admin(admin_id, db)
+    
+    # Check if community exists
+    community = crud.get_community(db, community_id=community_id)
+    if not community:
+        raise HTTPException(status_code=404, detail="Community not found")
+    
+    # Check if user exists
+    user = crud.get_user(db, user_id=user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    moderator = crud.assign_community_moderator(
+        db,
+        community_id=community_id,
+        user_id=user_id,
+        assigned_by=admin_id
+    )
+    
+    return {"success": True, "moderator": moderator}
+
+@router.delete("/communities/{community_id}/moderators/{user_id}")
+def remove_community_mod(
+    community_id: int,
+    user_id: int,
+    admin_id: int,
+    db: Session = Depends(get_db)
+):
+    verify_admin(admin_id, db)
+    
+    success = crud.remove_community_moderator(db, community_id=community_id, user_id=user_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Moderator not found")
+    
+    return {"success": True, "message": "Moderator removed"}
+
+@router.get("/communities/{community_id}/moderators")
+def get_community_mods(
+    community_id: int,
+    db: Session = Depends(get_db)
+):
+    return crud.get_community_moderators(db, community_id=community_id)

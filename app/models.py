@@ -2,6 +2,7 @@ from sqlalchemy import Column, Integer, String, Text, Boolean, DateTime, Foreign
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from app.database import Base
+from datetime import datetime
 
 class User(Base):
     __tablename__ = "users"
@@ -107,3 +108,44 @@ class ModerationLog(Base):
     target_id = Column(Integer)
     reason = Column(Text)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+class DoctorVerification(Base):
+    __tablename__ = "doctor_verifications"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), unique=True)
+    full_name = Column(String(100), nullable=False)
+    specialization = Column(String(100), nullable=False)
+    license_number = Column(String(50), nullable=False)
+    license_document_url = Column(Text)  # Cloudinary URL
+    clinic_address = Column(Text)
+    phone_number = Column(String(20))
+    bio = Column(Text)
+    status = Column(String(20), default='pending')  # pending, approved, rejected
+    submitted_at = Column(DateTime, default=datetime.utcnow)
+    reviewed_by = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    reviewed_at = Column(DateTime, nullable=True)
+    rejection_reason = Column(Text, nullable=True)
+    
+    # Relationships
+    user = relationship("User", foreign_keys=[user_id])
+    reviewer = relationship("User", foreign_keys=[reviewed_by])
+
+class CommunityModerator(Base):
+    __tablename__ = "community_moderators"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    community_id = Column(Integer, ForeignKey("communities.id", ondelete="CASCADE"))
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"))
+    assigned_by = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"))
+    assigned_at = Column(DateTime, default=datetime.utcnow)
+    permissions = Column(String(100), default='moderate_posts,delete_comments')  # Comma-separated
+    
+    __table_args__ = (
+        UniqueConstraint('community_id', 'user_id', name='unique_community_moderator'),
+    )
+    
+    # Relationships
+    community = relationship("Community")
+    user = relationship("User", foreign_keys=[user_id])
+    assigner = relationship("User", foreign_keys=[assigned_by])

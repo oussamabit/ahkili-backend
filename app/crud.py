@@ -213,3 +213,126 @@ def create_moderation_log(db: Session, moderator_id: int, action: str, target_ty
     db.add(log)
     db.commit()
     return log
+
+# ============= DOCTOR VERIFICATION =============
+def submit_doctor_verification(
+    db: Session,
+    user_id: int,
+    full_name: str,
+    specialization: str,
+    license_number: str,
+    license_document_url: str,
+    clinic_address: str,
+    phone_number: str,
+    bio: str
+):
+    verification = models.DoctorVerification(
+        user_id=user_id,
+        full_name=full_name,
+        specialization=specialization,
+        license_number=license_number,
+        license_document_url=license_document_url,
+        clinic_address=clinic_address,
+        phone_number=phone_number,
+        bio=bio
+    )
+    db.add(verification)
+    db.commit()
+    db.refresh(verification)
+    return verification
+
+def get_pending_verifications(db: Session):
+    return db.query(models.DoctorVerification).filter(
+        models.DoctorVerification.status == 'pending'
+    ).order_by(models.DoctorVerification.submitted_at.desc()).all()
+
+def get_all_verifications(db: Session):
+    return db.query(models.DoctorVerification).order_by(
+        models.DoctorVerification.submitted_at.desc()
+    ).all()
+
+def approve_doctor_verification(db: Session, verification_id: int, admin_id: int):
+    verification = db.query(models.DoctorVerification).filter(
+        models.DoctorVerification.id == verification_id
+    ).first()
+    
+    if not verification:
+        return None
+    
+    # Update verification status
+    verification.status = 'approved'
+    verification.reviewed_by = admin_id
+    verification.reviewed_at = datetime.utcnow()
+    
+    # Update user role to doctor
+    user = db.query(models.User).filter(models.User.id == verification.user_id).first()
+    if user:
+        user.role = 'doctor'
+        user.verified = True
+    
+    db.commit()
+    db.refresh(verification)
+    return verification
+
+def reject_doctor_verification(db: Session, verification_id: int, admin_id: int, reason: str):
+    verification = db.query(models.DoctorVerification).filter(
+        models.DoctorVerification.id == verification_id
+    ).first()
+    
+    if not verification:
+        return None
+    
+    verification.status = 'rejected'
+    verification.reviewed_by = admin_id
+    verification.reviewed_at = datetime.utcnow()
+    verification.rejection_reason = reason
+    
+    db.commit()
+    db.refresh(verification)
+    return verification
+
+def get_user_verification(db: Session, user_id: int):
+    return db.query(models.DoctorVerification).filter(
+        models.DoctorVerification.user_id == user_id
+    ).first()
+
+# ============= COMMUNITY MODERATORS =============
+def assign_community_moderator(db: Session, community_id: int, user_id: int, assigned_by: int):
+    moderator = models.CommunityModerator(
+        community_id=community_id,
+        user_id=user_id,
+        assigned_by=assigned_by
+    )
+    db.add(moderator)
+    db.commit()
+    db.refresh(moderator)
+    return moderator
+
+def remove_community_moderator(db: Session, community_id: int, user_id: int):
+    moderator = db.query(models.CommunityModerator).filter(
+        models.CommunityModerator.community_id == community_id,
+        models.CommunityModerator.user_id == user_id
+    ).first()
+    
+    if moderator:
+        db.delete(moderator)
+        db.commit()
+        return True
+    return False
+
+def get_community_moderators(db: Session, community_id: int):
+    return db.query(models.CommunityModerator).filter(
+        models.CommunityModerator.community_id == community_id
+    ).all()
+
+def is_community_moderator(db: Session, community_id: int, user_id: int):
+    moderator = db.query(models.CommunityModerator).filter(
+        models.CommunityModerator.community_id == community_id,
+        models.CommunityModerator.user_id == user_id
+    ).first()
+    return moderator is not None
+
+def get_user_moderated_communities(db: Session, user_id: int):
+    return db.query(models.CommunityModerator).filter(
+        models.CommunityModerator.user_id == user_id
+    ).all()

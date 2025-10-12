@@ -110,3 +110,45 @@ class UserWithRole(BaseModel):
     
     class Config:
         from_attributes = True
+
+# Doctor Verification schemas
+class DoctorVerificationCreate(BaseModel):
+    full_name: str
+    specialization: str
+    license_number: str
+    license_document_url: str
+    clinic_address: str
+    phone_number: str
+    bio: str
+
+class DoctorVerificationResponse(BaseModel):
+    id: int
+    user_id: int
+    full_name: str
+    specialization: str
+    license_number: str
+    license_document_url: str
+    clinic_address: str
+    phone_number: str
+    bio: str
+    status: str
+    submitted_at: datetime
+    reviewed_at: Optional[datetime]
+    rejection_reason: Optional[str]
+    
+    class Config:
+        from_attributes = True
+
+# Community Moderator schemas
+class CommunityModeratorCreate(BaseModel):
+    community_id: int
+    user_id: int
+
+class CommunityModeratorResponse(BaseModel):
+    id: int
+    community_id: int
+    user_id: int
+    assigned_at: datetime
+    
+    class Config:
+        from_attributes = True
