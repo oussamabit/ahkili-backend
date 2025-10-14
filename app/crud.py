@@ -1,6 +1,7 @@
 from sqlalchemy.orm import Session
 from app import models, schemas
 from typing import List, Optional
+from datetime import datetime
 
 # ============= USER CRUD =============
 def get_user_by_firebase_uid(db: Session, firebase_uid: str):

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from app import crud, schemas
 from app.database import get_db
@@ -29,7 +29,10 @@ def submit_verification(
     )
 
 @router.get("/doctor/status")
-def get_verification_status(user_id: int, db: Session = Depends(get_db)):
+def get_verification_status(
+    user_id: int = Query(..., description="User ID"),
+    db: Session = Depends(get_db)
+):
     verification = crud.get_user_verification(db, user_id=user_id)
     if not verification:
         return {"status": "not_submitted"}
