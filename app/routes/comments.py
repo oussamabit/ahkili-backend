@@ -32,29 +32,30 @@ def get_comments(post_id: int, db: Session = Depends(get_db)):
                 "username": comment.author.username,
                 "role": comment.author.role,
                 "verified": comment.author.verified
-            },
+            } if comment.author else None,
             "reactions": crud.get_comment_reactions_count(db, comment.id),
             "replies": []
         }
         
         # Add replies with their reactions
-        for reply in comment.replies:
-            reply_dict = {
-                "id": reply.id,
-                "content": reply.content,
-                "user_id": reply.user_id,
-                "post_id": reply.post_id,
-                "parent_id": reply.parent_id,
-                "created_at": reply.created_at,
-                "author": {
-                    "id": reply.author.id,
-                    "username": reply.author.username,
-                    "role": reply.author.role,
-                    "verified": reply.author.verified
-                },
-                "reactions": crud.get_comment_reactions_count(db, reply.id)
-            }
-            comment_dict["replies"].append(reply_dict)
+        if comment.replies:
+            for reply in comment.replies:
+                reply_dict = {
+                    "id": reply.id,
+                    "content": reply.content,
+                    "user_id": reply.user_id,
+                    "post_id": reply.post_id,
+                    "parent_id": reply.parent_id,
+                    "created_at": reply.created_at,
+                    "author": {
+                        "id": reply.author.id,
+                        "username": reply.author.username,
+                        "role": reply.author.role,
+                        "verified": reply.author.verified
+                    } if reply.author else None,
+                    "reactions": crud.get_comment_reactions_count(db, reply.id)
+                }
+                comment_dict["replies"].append(reply_dict)
         
         result.append(comment_dict)
     
@@ -65,7 +66,7 @@ def create_comment(
     post_id: int,
     comment: schemas.CommentCreate,
     user_id: int,
-    parent_id: Optional[int] = None,  # For replies
+    parent_id: Optional[int] = None,
     db: Session = Depends(get_db)
 ):
     """Create a comment or reply"""
@@ -105,6 +106,7 @@ def create_comment(
             "username": db_comment.author.username,
             "role": db_comment.author.role,
             "verified": db_comment.author.verified
-        },
-        "reactions": {"likes": 0, "dislikes": 0}
+        } if db_comment.author else None,
+        "reactions": {"likes": 0, "dislikes": 0},
+        "replies": []
     }
