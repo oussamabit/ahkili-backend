@@ -337,3 +337,77 @@ def get_user_moderated_communities(db: Session, user_id: int):
     return db.query(models.CommunityModerator).filter(
         models.CommunityModerator.user_id == user_id
     ).all()
+
+
+# ============= COMMENT REACTION CRUD =============
+def toggle_comment_reaction(db: Session, comment_id: int, user_id: int, reaction_type: str = "like"):
+    """Toggle like/dislike on a comment"""
+    # Check if reaction already exists
+    existing = db.query(models.CommentReaction).filter(
+        models.CommentReaction.comment_id == comment_id,
+        models.CommentReaction.user_id == user_id
+    ).first()
+    
+    if existing:
+        if existing.reaction_type == reaction_type:
+            # Remove reaction (unlike/undislike)
+            db.delete(existing)
+            db.commit()
+            return None
+        else:
+            # Change reaction type (like to dislike or vice versa)
+            existing.reaction_type = reaction_type
+            db.commit()
+            db.refresh(existing)
+            return existing
+    else:
+        # Add new reaction
+        reaction = models.CommentReaction(
+            comment_id=comment_id,
+            user_id=user_id,
+            reaction_type=reaction_type
+        )
+        db.add(reaction)
+        db.commit()
+        db.refresh(reaction)
+        return reaction
+
+def get_comment_reactions_count(db: Session, comment_id: int):
+    """Get like and dislike counts for a comment"""
+    likes = db.query(models.CommentReaction).filter(
+        models.CommentReaction.comment_id == comment_id,
+        models.CommentReaction.reaction_type == "like"
+    ).count()
+    
+    dislikes = db.query(models.CommentReaction).filter(
+        models.CommentReaction.comment_id == comment_id,
+        models.CommentReaction.reaction_type == "dislike"
+    ).count()
+    
+    return {"likes": likes, "dislikes": dislikes}
+
+def get_user_comment_reaction(db: Session, comment_id: int, user_id: int):
+    """Get user's reaction on a comment"""
+    reaction = db.query(models.CommentReaction).filter(
+        models.CommentReaction.comment_id == comment_id,
+        models.CommentReaction.user_id == user_id
+    ).first()
+    
+    return reaction.reaction_type if reaction else None
+
+# Update get_comments to include nested replies
+def get_comments_with_replies(db: Session, post_id: int):
+    """Get comments with their replies and reaction counts"""
+    # Get all comments for the post
+    all_comments = db.query(models.Comment).filter(
+        models.Comment.post_id == post_id
+    ).order_by(models.Comment.created_at.asc()).all()
+    
+    # Separate parent comments and replies
+    parent_comments = [c for c in all_comments if c.parent_id is None]
+    
+    # Build comment tree
+    for comment in parent_comments:
+        comment.replies = [c for c in all_comments if c.parent_id == comment.id]
+    
+    return parent_comments

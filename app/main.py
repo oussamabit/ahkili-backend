@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routes import users, posts, comments, communities, reactions,admin , upload,verification
+from app.routes import users, posts, comments, communities, reactions,admin , upload,verification ,comment_reactions
+
 import os
 
 app = FastAPI(title="Ahkili API", version="1.0.0")
@@ -32,6 +33,7 @@ app.include_router(reactions.router)
 app.include_router(admin.router)
 app.include_router(upload.router)
 app.include_router(verification.router)
+app.include_router(comment_reactions.router)
 
 @app.get("/")
 def read_root():

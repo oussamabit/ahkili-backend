@@ -51,9 +51,9 @@ class Comment(Base):
     __tablename__ = "comments"
     
     id = Column(Integer, primary_key=True, index=True)
-    post_id = Column(Integer, ForeignKey("posts.id", ondelete="CASCADE"), nullable=False)  
+    post_id = Column(Integer, ForeignKey("posts.id", ondelete="CASCADE"), nullable=False)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    parent_id = Column(Integer, ForeignKey("comments.id", ondelete="CASCADE"), nullable=True)  
+    parent_id = Column(Integer, ForeignKey("comments.id", ondelete="CASCADE"), nullable=True)  # For replies
     content = Column(Text, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     
@@ -149,3 +149,17 @@ class CommunityModerator(Base):
     community = relationship("Community")
     user = relationship("User", foreign_keys=[user_id])
     assigner = relationship("User", foreign_keys=[assigned_by])
+    
+
+class CommentReaction(Base):
+    __tablename__ = "comment_reactions"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    comment_id = Column(Integer, ForeignKey("comments.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    reaction_type = Column(String(20), default="like")  # 'like' or 'dislike'
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    __table_args__ = (
+        UniqueConstraint('comment_id', 'user_id', name='unique_comment_user_reaction'),
+    )
