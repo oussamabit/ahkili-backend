@@ -39,7 +39,32 @@ def check_post_delete_permission(post: models.Post, user_id: int, db: Session) -
     
     return False
 
-@router.get("/", response_model=List[schemas.PostResponse])
+def serialize_post(post):
+    """Helper function to serialize post with author info"""
+    return {
+        "id": post.id,
+        "title": post.title,
+        "content": post.content,
+        "user_id": post.user_id,
+        "community_id": post.community_id,
+        "image_url": post.image_url,
+        "is_anonymous": post.is_anonymous if post.is_anonymous is not None else False,
+        "created_at": post.created_at,
+        "reactions_count": getattr(post, 'reactions_count', 0),
+        "comments_count": getattr(post, 'comments_count', 0),
+        "author": {
+            "id": post.author.id,
+            "username": post.author.username,
+            "role": post.author.role,
+            "verified": post.author.verified
+        } if post.author else None,
+        "community": {
+            "id": post.community.id,
+            "name": post.community.name
+        } if post.community else None
+    }
+
+@router.get("/")
 def get_posts(
     skip: int = 0,
     limit: int = 100,
@@ -47,22 +72,23 @@ def get_posts(
     db: Session = Depends(get_db)
 ):
     posts = crud.get_posts(db, skip=skip, limit=limit, community_id=community_id)
-    return posts
+    return [serialize_post(post) for post in posts]
 
-@router.get("/{post_id}", response_model=schemas.PostResponse)
+@router.get("/{post_id}")
 def get_post(post_id: int, db: Session = Depends(get_db)):
     db_post = crud.get_post(db, post_id=post_id)
     if db_post is None:
         raise HTTPException(status_code=404, detail="Post not found")
-    return db_post
+    return serialize_post(db_post)
 
-@router.post("/", response_model=schemas.PostResponse)
+@router.post("/")
 def create_post(
     post: schemas.PostCreate,
     user_id: int,
     db: Session = Depends(get_db)
 ):
-    return crud.create_post(db=db, post=post, user_id=user_id)
+    created_post = crud.create_post(db=db, post=post, user_id=user_id)
+    return serialize_post(created_post)
 
 @router.delete("/{post_id}")
 def delete_post(
@@ -107,17 +133,17 @@ def delete_post(
     
     return {"message": "Post deleted successfully"}
 
-@router.get("/user/{user_id}", response_model=List[schemas.PostResponse])
+@router.get("/user/{user_id}")
 def get_user_posts(user_id: int, db: Session = Depends(get_db)):
-    from app import crud as crud_ops
-    return crud_ops.get_user_posts(db, user_id=user_id)
+    posts = crud.get_user_posts(db, user_id=user_id)
+    return [serialize_post(post) for post in posts]
 
-@router.get("/search", response_model=List[schemas.PostResponse])
+@router.get("/search")
 def search_posts(
     q: str,
     skip: int = 0,
     limit: int = 50,
     db: Session = Depends(get_db)
 ):
-    from app import crud as crud_ops
-    return crud_ops.search_posts(db, query=q, skip=skip, limit=limit)
+    posts = crud.search_posts(db, query=q, skip=skip, limit=limit)
+    return [serialize_post(post) for post in posts]
