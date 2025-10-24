@@ -47,10 +47,23 @@ def get_posts(db: Session, skip: int = 0, limit: int = 100, community_id: Option
     query = db.query(models.Post)
     if community_id:
         query = query.filter(models.Post.community_id == community_id)
-    return query.order_by(models.Post.created_at.desc()).offset(skip).limit(limit).all()
+    posts = query.order_by(models.Post.created_at.desc()).offset(skip).limit(limit).all()
+    
+    # Add reactions and comments count to each post
+    for post in posts:
+        post.reactions_count = get_post_reactions_count(db, post.id)
+        post.comments_count = db.query(models.Comment).filter(models.Comment.post_id == post.id).count()
+    
+    return posts
 
 def get_post(db: Session, post_id: int):
-    return db.query(models.Post).filter(models.Post.id == post_id).first()
+    post = db.query(models.Post).filter(models.Post.id == post_id).first()
+    if post:
+        # Add reactions count
+        post.reactions_count = get_post_reactions_count(db, post_id)
+        # Add comments count
+        post.comments_count = db.query(models.Comment).filter(models.Comment.post_id == post_id).count()
+    return post
 
 def create_post(db: Session, post: schemas.PostCreate, user_id: int):
     db_post = models.Post(
@@ -102,13 +115,27 @@ def get_hotlines(db: Session, country: Optional[str] = None):
     return query.all()
 
 def get_user_posts(db: Session, user_id: int):
-    return db.query(models.Post).filter(models.Post.user_id == user_id).order_by(models.Post.created_at.desc()).all()
+    posts = db.query(models.Post).filter(models.Post.user_id == user_id).order_by(models.Post.created_at.desc()).all()
+    
+    # Add reactions and comments count to each post
+    for post in posts:
+        post.reactions_count = get_post_reactions_count(db, post.id)
+        post.comments_count = db.query(models.Comment).filter(models.Comment.post_id == post.id).count()
+    
+    return posts
 
 # ============= SEARCH FUNCTIONS =============
 def search_posts(db: Session, query: str, skip: int = 0, limit: int = 50):
-    return db.query(models.Post).filter(
+    posts = db.query(models.Post).filter(
         models.Post.title.ilike(f'%{query}%') | models.Post.content.ilike(f'%{query}%')
     ).order_by(models.Post.created_at.desc()).offset(skip).limit(limit).all()
+    
+    # Add reactions and comments count to each post
+    for post in posts:
+        post.reactions_count = get_post_reactions_count(db, post.id)
+        post.comments_count = db.query(models.Comment).filter(models.Comment.post_id == post.id).count()
+    
+    return posts
 
 def search_communities(db: Session, query: str):
     return db.query(models.Community).filter(
