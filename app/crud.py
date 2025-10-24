@@ -53,7 +53,8 @@ def get_posts(db: Session, skip: int = 0, limit: int = 100, community_id: Option
     for post in posts:
         post.reactions_count = get_post_reactions_count(db, post.id)
         post.comments_count = db.query(models.Comment).filter(models.Comment.post_id == post.id).count()
-    
+        if post.is_anonymous is None:
+            post.is_anonymous = False
     return posts
 
 def get_post(db: Session, post_id: int):
@@ -63,6 +64,8 @@ def get_post(db: Session, post_id: int):
         post.reactions_count = get_post_reactions_count(db, post_id)
         # Add comments count
         post.comments_count = db.query(models.Comment).filter(models.Comment.post_id == post_id).count()
+        if post.is_anonymous is None:
+            post.is_anonymous = False
     return post
 
 def create_post(db: Session, post: schemas.PostCreate, user_id: int):
@@ -122,7 +125,8 @@ def get_user_posts(db: Session, user_id: int):
     for post in posts:
         post.reactions_count = get_post_reactions_count(db, post.id)
         post.comments_count = db.query(models.Comment).filter(models.Comment.post_id == post.id).count()
-    
+        if post.is_anonymous is None:
+            post.is_anonymous = False
     return posts
 
 # ============= SEARCH FUNCTIONS =============
@@ -135,7 +139,8 @@ def search_posts(db: Session, query: str, skip: int = 0, limit: int = 50):
     for post in posts:
         post.reactions_count = get_post_reactions_count(db, post.id)
         post.comments_count = db.query(models.Comment).filter(models.Comment.post_id == post.id).count()
-    
+        if post.is_anonymous is None:
+            post.is_anonymous = False
     return posts
 
 def search_communities(db: Session, query: str):
