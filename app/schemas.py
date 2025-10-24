@@ -34,6 +34,8 @@ class PostResponse(BaseModel):
     community_id: Optional[int]
     image_url: Optional[str] = None  
     created_at: datetime
+    reactions_count: int = 0
+    comments_count: int = 0
     
     class Config:
         from_attributes = True
@@ -47,6 +49,7 @@ class CommentResponse(BaseModel):
     content: str
     user_id: int
     post_id: int
+    parent_id: Optional[int] = None
     created_at: datetime
     
     class Config:
