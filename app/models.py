@@ -35,11 +35,12 @@ class Post(Base):
     __tablename__ = "posts"
     
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    title = Column(String, nullable=False)
+    content = Column(Text, nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"))
     community_id = Column(Integer, ForeignKey("communities.id"))
-    title = Column(Text, nullable=False)
-    content = Column(Text)
-    image_url = Column(Text)
+    image_url = Column(String, nullable=True)
+    is_anonymous = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     
     # Relationships

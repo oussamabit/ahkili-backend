@@ -25,6 +25,7 @@ class PostCreate(BaseModel):
     content: str
     community_id: Optional[int] = None
     image_url: Optional[str] = None
+    is_anonymous: bool = False
 
 class PostResponse(BaseModel):
     id: int
@@ -33,6 +34,7 @@ class PostResponse(BaseModel):
     user_id: int
     community_id: Optional[int]
     image_url: Optional[str] = None  
+    is_anonymous: bool = False
     created_at: datetime
     reactions_count: int = 0
     comments_count: int = 0

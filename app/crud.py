@@ -71,7 +71,8 @@ def create_post(db: Session, post: schemas.PostCreate, user_id: int):
         content=post.content,
         community_id=post.community_id,
         user_id=user_id,
-        image_url=post.image_url  
+        image_url=post.image_url,
+        is_anonymous=post.is_anonymous
     )
     db.add(db_post)
     db.commit()
