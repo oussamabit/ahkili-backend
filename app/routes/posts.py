@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 from app import crud, schemas, models
 from app.database import get_db
-from app.services.upload import delete_image
+from app.services.upload import delete_image , delete_video
 
 router = APIRouter(prefix="/posts", tags=["posts"])
 
@@ -48,6 +48,7 @@ def serialize_post(post):
         "user_id": post.user_id,
         "community_id": post.community_id,
         "image_url": post.image_url,
+        "video_url": post.video_url,
         "is_anonymous": post.is_anonymous if post.is_anonymous is not None else False,
         "created_at": post.created_at,
         "reactions_count": getattr(post, 'reactions_count', 0),
@@ -125,11 +126,15 @@ def delete_post(
         )
     
     # Delete post and get image_url
-    image_url = crud.delete_post(db, post_id=post_id)
+    # Delete post and get media URLs
+    media_urls = crud.delete_post(db, post_id=post_id)
     
-    # Delete image from Cloudinary if exists
-    if image_url:
-        delete_image(image_url)
+    # Delete media from Cloudinary if exists
+    if media_urls:
+        if media_urls.get('image_url'):
+            delete_image(media_urls['image_url'])
+        if media_urls.get('video_url'):
+            delete_video(media_urls['video_url'])
     
     return {"message": "Post deleted successfully"}
 

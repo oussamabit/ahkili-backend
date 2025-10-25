@@ -40,6 +40,7 @@ class Post(Base):
     user_id = Column(Integer, ForeignKey("users.id"))
     community_id = Column(Integer, ForeignKey("communities.id"))
     image_url = Column(String, nullable=True)
+    video_url = Column(String, nullable=True)
     is_anonymous = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     

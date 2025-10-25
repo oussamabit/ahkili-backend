@@ -75,6 +75,7 @@ def create_post(db: Session, post: schemas.PostCreate, user_id: int):
         community_id=post.community_id,
         user_id=user_id,
         image_url=post.image_url,
+        video_url=post.video_url,
         is_anonymous=post.is_anonymous
     )
     db.add(db_post)
@@ -85,15 +86,18 @@ def create_post(db: Session, post: schemas.PostCreate, user_id: int):
 def delete_post(db: Session, post_id: int):
     post = db.query(models.Post).filter(models.Post.id == post_id).first()
     if post:
-        # Store image_url before deleting
-        image_url = post.image_url
+        # Store media URLs before deleting
+        media_urls = {
+            'image_url': post.image_url,
+            'video_url': post.video_url
+        }
         
         # Delete post from database
         db.delete(post)
         db.commit()
         
-        # Return image_url so we can delete it from Cloudinary
-        return image_url
+        # Return media URLs so we can delete them from Cloudinary
+        return media_urls
     return None
 
 # ============= COMMENT CRUD =============
