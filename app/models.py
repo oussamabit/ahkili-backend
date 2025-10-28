@@ -165,3 +165,56 @@ class CommentReaction(Base):
     __table_args__ = (
         UniqueConstraint('comment_id', 'user_id', name='unique_comment_user_reaction'),
     )
+
+class NotificationPreference(Base):
+    __tablename__ = "notification_preferences"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), unique=True)
+    email_notifications = Column(Boolean, default=True)
+    push_notifications = Column(Boolean, default=False)
+    comment_reactions = Column(Boolean, default=True)
+    comment_replies = Column(Boolean, default=True)
+    post_reactions = Column(Boolean, default=True)
+    new_posts = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    user = relationship("User", foreign_keys=[user_id])
+
+
+class Notification(Base):
+    __tablename__ = "notifications"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    type = Column(String(50), nullable=False)  # 'comment_reaction', 'comment_reply', 'post_reaction', 'new_post'
+    title = Column(String(200), nullable=False)
+    message = Column(Text, nullable=False)
+    target_type = Column(String(20))  # 'post', 'comment'
+    target_id = Column(Integer)
+    actor_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"))  # Who triggered the notification
+    is_read = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    user = relationship("User", foreign_keys=[user_id])
+    actor = relationship("User", foreign_keys=[actor_id])
+
+
+class CommunityFollower(Base):
+    __tablename__ = "community_followers"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    community_id = Column(Integer, ForeignKey("communities.id", ondelete="CASCADE"))
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"))
+    followed_at = Column(DateTime, default=datetime.utcnow)
+    
+    __table_args__ = (
+        UniqueConstraint('community_id', 'user_id', name='unique_community_follower'),
+    )
+    
+    # Relationships
+    community = relationship("Community")
+    user = relationship("User")

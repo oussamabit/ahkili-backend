@@ -159,3 +159,57 @@ class CommunityModeratorResponse(BaseModel):
     
     class Config:
         from_attributes = True
+
+# Notification Preference schemas
+class NotificationPreferenceCreate(BaseModel):
+    email_notifications: bool = True
+    push_notifications: bool = False
+    comment_reactions: bool = True
+    comment_replies: bool = True
+    post_reactions: bool = True
+    new_posts: bool = False
+
+class NotificationPreferenceResponse(BaseModel):
+    id: int
+    user_id: int
+    email_notifications: bool
+    push_notifications: bool
+    comment_reactions: bool
+    comment_replies: bool
+    post_reactions: bool
+    new_posts: bool
+    updated_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+
+# Notification schemas
+class NotificationResponse(BaseModel):
+    id: int
+    user_id: int
+    type: str
+    title: str
+    message: str
+    target_type: Optional[str]
+    target_id: Optional[int]
+    actor_id: Optional[int]
+    is_read: bool
+    created_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+
+# Community Follower schemas
+class CommunityFollowerCreate(BaseModel):
+    community_id: int
+
+class CommunityFollowerResponse(BaseModel):
+    id: int
+    community_id: int
+    user_id: int
+    followed_at: datetime
+    
+    class Config:
+        from_attributes = True

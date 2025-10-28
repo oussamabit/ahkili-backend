@@ -448,3 +448,353 @@ def get_comments_with_replies(db: Session, post_id: int):
         comment.replies = [c for c in all_comments if c.parent_id == comment.id]
     
     return parent_comments
+
+# ============= NOTIFICATION PREFERENCE CRUD =============
+def get_or_create_notification_preferences(db: Session, user_id: int):
+    """Get user's notification preferences or create default ones"""
+    prefs = db.query(models.NotificationPreference).filter(
+        models.NotificationPreference.user_id == user_id
+    ).first()
+    
+    if not prefs:
+        prefs = models.NotificationPreference(user_id=user_id)
+        db.add(prefs)
+        db.commit()
+        db.refresh(prefs)
+    
+    return prefs
+
+
+def update_notification_preferences(db: Session, user_id: int, preferences: dict):
+    """Update user's notification preferences"""
+    prefs = get_or_create_notification_preferences(db, user_id)
+    
+    for key, value in preferences.items():
+        if hasattr(prefs, key):
+            setattr(prefs, key, value)
+    
+    prefs.updated_at = datetime.utcnow()
+    db.commit()
+    db.refresh(prefs)
+    return prefs
+
+
+# ============= NOTIFICATION CRUD =============
+def create_notification(
+    db: Session,
+    user_id: int,
+    notification_type: str,
+    title: str,
+    message: str,
+    target_type: str = None,
+    target_id: int = None,
+    actor_id: int = None
+):
+    """Create a new notification"""
+    # Check if user has this notification type enabled
+    prefs = get_or_create_notification_preferences(db, user_id)
+    
+    # Map notification types to preference fields
+    pref_mapping = {
+        'comment_reaction': prefs.comment_reactions,
+        'comment_reply': prefs.comment_replies,
+        'post_reaction': prefs.post_reactions,
+        'new_post': prefs.new_posts
+    }
+    
+    # Only create notification if user has enabled this type
+    if not pref_mapping.get(notification_type, True):
+        return None
+    
+    notification = models.Notification(
+        user_id=user_id,
+        type=notification_type,
+        title=title,
+        message=message,
+        target_type=target_type,
+        target_id=target_id,
+        actor_id=actor_id
+    )
+    db.add(notification)
+    db.commit()
+    db.refresh(notification)
+    return notification
+
+
+def get_user_notifications(db: Session, user_id: int, skip: int = 0, limit: int = 50):
+    """Get user's notifications"""
+    return db.query(models.Notification).filter(
+        models.Notification.user_id == user_id
+    ).order_by(models.Notification.created_at.desc()).offset(skip).limit(limit).all()
+
+
+def get_unread_notifications_count(db: Session, user_id: int):
+    """Get count of unread notifications"""
+    return db.query(models.Notification).filter(
+        models.Notification.user_id == user_id,
+        models.Notification.is_read == False
+    ).count()
+
+
+def mark_notification_as_read(db: Session, notification_id: int, user_id: int):
+    """Mark a notification as read"""
+    notification = db.query(models.Notification).filter(
+        models.Notification.id == notification_id,
+        models.Notification.user_id == user_id
+    ).first()
+    
+    if notification:
+        notification.is_read = True
+        db.commit()
+        return True
+    return False
+
+
+def mark_all_notifications_as_read(db: Session, user_id: int):
+    """Mark all user's notifications as read"""
+    db.query(models.Notification).filter(
+        models.Notification.user_id == user_id,
+        models.Notification.is_read == False
+    ).update({"is_read": True})
+    db.commit()
+    return True
+
+
+def delete_notification(db: Session, notification_id: int, user_id: int):
+    """Delete a notification"""
+    notification = db.query(models.Notification).filter(
+        models.Notification.id == notification_id,
+        models.Notification.user_id == user_id
+    ).first()
+    
+    if notification:
+        db.delete(notification)
+        db.commit()
+        return True
+    return False
+
+
+# ============= COMMUNITY FOLLOWER CRUD =============
+def follow_community(db: Session, community_id: int, user_id: int):
+    """Follow a community"""
+    existing = db.query(models.CommunityFollower).filter(
+        models.CommunityFollower.community_id == community_id,
+        models.CommunityFollower.user_id == user_id
+    ).first()
+    
+    if existing:
+        return existing
+    
+    follower = models.CommunityFollower(
+        community_id=community_id,
+        user_id=user_id
+    )
+    db.add(follower)
+    db.commit()
+    db.refresh(follower)
+    return follower
+
+
+def unfollow_community(db: Session, community_id: int, user_id: int):
+    """Unfollow a community"""
+    follower = db.query(models.CommunityFollower).filter(
+        models.CommunityFollower.community_id == community_id,
+        models.CommunityFollower.user_id == user_id
+    ).first()
+    
+    if follower:
+        db.delete(follower)
+        db.commit()
+        return True
+    return False
+
+
+def is_following_community(db: Session, community_id: int, user_id: int):
+    """Check if user is following a community"""
+    follower = db.query(models.CommunityFollower).filter(
+        models.CommunityFollower.community_id == community_id,
+        models.CommunityFollower.user_id == user_id
+    ).first()
+    return follower is not None
+
+
+def get_community_followers(db: Session, community_id: int):
+    """Get all followers of a community"""
+    return db.query(models.CommunityFollower).filter(
+        models.CommunityFollower.community_id == community_id
+    ).all()
+
+
+# ============= UPDATE EXISTING FUNCTIONS TO TRIGGER NOTIFICATIONS =============
+
+# Update toggle_comment_reaction to create notification
+def toggle_comment_reaction(db: Session, comment_id: int, user_id: int, reaction_type: str = "like"):
+    """Toggle like/dislike on a comment and create notification"""
+    existing = db.query(models.CommentReaction).filter(
+        models.CommentReaction.comment_id == comment_id,
+        models.CommentReaction.user_id == user_id
+    ).first()
+    
+    # Get the comment to find its author
+    comment = db.query(models.Comment).filter(models.Comment.id == comment_id).first()
+    
+    if existing:
+        if existing.reaction_type == reaction_type:
+            db.delete(existing)
+            db.commit()
+            return None
+        else:
+            existing.reaction_type = reaction_type
+            db.commit()
+            db.refresh(existing)
+            
+            # Create notification for comment author (only if not reacting to own comment)
+            if comment and comment.user_id != user_id:
+                reactor = db.query(models.User).filter(models.User.id == user_id).first()
+                create_notification(
+                    db=db,
+                    user_id=comment.user_id,
+                    notification_type='comment_reaction',
+                    title='Someone reacted to your comment',
+                    message=f'{reactor.username} {reaction_type}d your comment',
+                    target_type='comment',
+                    target_id=comment_id,
+                    actor_id=user_id
+                )
+            
+            return existing
+    else:
+        reaction = models.CommentReaction(
+            comment_id=comment_id,
+            user_id=user_id,
+            reaction_type=reaction_type
+        )
+        db.add(reaction)
+        db.commit()
+        db.refresh(reaction)
+        
+        # Create notification for comment author (only if not reacting to own comment)
+        if comment and comment.user_id != user_id:
+            reactor = db.query(models.User).filter(models.User.id == user_id).first()
+            create_notification(
+                db=db,
+                user_id=comment.user_id,
+                notification_type='comment_reaction',
+                title='Someone reacted to your comment',
+                message=f'{reactor.username} {reaction_type}d your comment',
+                target_type='comment',
+                target_id=comment_id,
+                actor_id=user_id
+            )
+        
+        return reaction
+
+
+# Update create_comment to create notification for replies
+def create_comment(db: Session, comment: schemas.CommentCreate, post_id: int, user_id: int):
+    db_comment = models.Comment(
+        content=comment.content,
+        post_id=post_id,
+        user_id=user_id
+    )
+    db.add(db_comment)
+    db.commit()
+    db.refresh(db_comment)
+    
+    # Get the post to find its author
+    post = db.query(models.Post).filter(models.Post.id == post_id).first()
+    
+    # Create notification for post author (only if not commenting on own post)
+    if post and post.user_id != user_id:
+        commenter = db.query(models.User).filter(models.User.id == user_id).first()
+        create_notification(
+            db=db,
+            user_id=post.user_id,
+            notification_type='comment_reply',
+            title='New comment on your post',
+            message=f'{commenter.username} commented on your post',
+            target_type='post',
+            target_id=post_id,
+            actor_id=user_id
+        )
+    
+    return db_comment
+
+
+# Update add_reaction to create notification
+def add_reaction(db: Session, post_id: int, user_id: int, reaction_type: str = "like"):
+    existing = db.query(models.PostReaction).filter(
+        models.PostReaction.post_id == post_id,
+        models.PostReaction.user_id == user_id
+    ).first()
+    
+    # Get the post to find its author
+    post = db.query(models.Post).filter(models.Post.id == post_id).first()
+    
+    if existing:
+        db.delete(existing)
+        db.commit()
+        return None
+    else:
+        reaction = models.PostReaction(
+            post_id=post_id,
+            user_id=user_id,
+            reaction_type=reaction_type
+        )
+        db.add(reaction)
+        db.commit()
+        db.refresh(reaction)
+        
+        # Create notification for post author (only if not reacting to own post)
+        if post and post.user_id != user_id:
+            reactor = db.query(models.User).filter(models.User.id == user_id).first()
+            create_notification(
+                db=db,
+                user_id=post.user_id,
+                notification_type='post_reaction',
+                title='Someone liked your post',
+                message=f'{reactor.username} liked your post: {post.title[:50]}',
+                target_type='post',
+                target_id=post_id,
+                actor_id=user_id
+            )
+        
+        return reaction
+
+
+# Update create_post to notify community followers
+def create_post(db: Session, post: schemas.PostCreate, user_id: int):
+    db_post = models.Post(
+        title=post.title,
+        content=post.content,
+        community_id=post.community_id,
+        user_id=user_id,
+        image_url=post.image_url,
+        video_url=post.video_url,
+        is_anonymous=post.is_anonymous
+    )
+    db.add(db_post)
+    db.commit()
+    db.refresh(db_post)
+    
+    # Notify community followers about new post
+    if post.community_id:
+        followers = get_community_followers(db, post.community_id)
+        author = db.query(models.User).filter(models.User.id == user_id).first()
+        community = db.query(models.Community).filter(models.Community.id == post.community_id).first()
+        
+        for follower in followers:
+            # Don't notify the author
+            if follower.user_id != user_id:
+                create_notification(
+                    db=db,
+                    user_id=follower.user_id,
+                    notification_type='new_post',
+                    title=f'New post in {community.name}',
+                    message=f'{author.username} posted: {post.title[:50]}',
+                    target_type='post',
+                    target_id=db_post.id,
+                    actor_id=user_id
+                )
+    
+    return db_post

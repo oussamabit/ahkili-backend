@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routes import users, posts, comments, communities, reactions,admin , upload,verification ,comment_reactions
+from app.routes import users, posts, comments, communities, reactions,admin , upload,verification ,comment_reactions , notification
 
 import os
 
@@ -34,6 +34,10 @@ app.include_router(admin.router)
 app.include_router(upload.router)
 app.include_router(verification.router)
 app.include_router(comment_reactions.router)
+app.include_router(notification.router)
+
+
+
 
 @app.get("/")
 def read_root():
