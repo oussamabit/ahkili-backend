@@ -218,3 +218,19 @@ class CommunityFollower(Base):
     # Relationships
     community = relationship("Community")
     user = relationship("User")
+
+class CommunityMember(Base):
+    __tablename__ = "community_members"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    community_id = Column(Integer, ForeignKey("communities.id", ondelete="CASCADE"))
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"))
+    joined_at = Column(DateTime, default=datetime.utcnow)
+    
+    __table_args__ = (
+        UniqueConstraint('community_id', 'user_id', name='unique_community_member'),
+    )
+    
+    # Relationships
+    community = relationship("Community")
+    user = relationship("User")

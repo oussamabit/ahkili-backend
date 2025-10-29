@@ -30,3 +30,20 @@ def create_community(
 def search_communities(q: str, db: Session = Depends(get_db)):
     from app import crud as crud_ops
     return crud_ops.search_communities(db, query=q)
+
+@router.post("/{community_id}/join")
+def join_community(community_id: int, user_id: int, db: Session = Depends(get_db)):
+    member = crud.join_community(db, community_id, user_id)
+    return {"message": "Joined successfully", "member_id": member.id}
+
+@router.delete("/{community_id}/leave")
+def leave_community(community_id: int, user_id: int, db: Session = Depends(get_db)):
+    success = crud.leave_community(db, community_id, user_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Not a member")
+    return {"message": "Left successfully"}
+
+@router.get("/{community_id}/check-membership")
+def check_membership(community_id: int, user_id: int, db: Session = Depends(get_db)):
+    is_member = crud.is_community_member(db, community_id, user_id)
+    return {"is_member": is_member}

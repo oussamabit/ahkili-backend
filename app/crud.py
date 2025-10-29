@@ -798,3 +798,42 @@ def create_post(db: Session, post: schemas.PostCreate, user_id: int):
                 )
     
     return db_post
+
+# Community Member Functions
+def join_community(db: Session, community_id: int, user_id: int):
+    existing = db.query(models.CommunityMember).filter(
+        models.CommunityMember.community_id == community_id,
+        models.CommunityMember.user_id == user_id
+    ).first()
+    
+    if existing:
+        return existing
+    
+    member = models.CommunityMember(community_id=community_id, user_id=user_id)
+    db.add(member)
+    db.commit()
+    db.refresh(member)
+    return member
+
+def leave_community(db: Session, community_id: int, user_id: int):
+    member = db.query(models.CommunityMember).filter(
+        models.CommunityMember.community_id == community_id,
+        models.CommunityMember.user_id == user_id
+    ).first()
+    
+    if member:
+        db.delete(member)
+        db.commit()
+        return True
+    return False
+
+def is_community_member(db: Session, community_id: int, user_id: int):
+    return db.query(models.CommunityMember).filter(
+        models.CommunityMember.community_id == community_id,
+        models.CommunityMember.user_id == user_id
+    ).first() is not None
+
+def get_community_members_count(db: Session, community_id: int):
+    return db.query(models.CommunityMember).filter(
+        models.CommunityMember.community_id == community_id
+    ).count()
