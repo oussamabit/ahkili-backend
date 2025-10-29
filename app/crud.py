@@ -24,6 +24,36 @@ def create_user(db: Session, user: schemas.UserCreate):
 def get_user(db: Session, user_id: int):
     return db.query(models.User).filter(models.User.id == user_id).first()
 
+# Add after get_user function
+def update_user_profile(db: Session, user_id: int, updates: dict):
+    """Update user profile information"""
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        return None
+    
+    # Update only provided fields
+    for key, value in updates.items():
+        if value is not None and hasattr(user, key):
+            setattr(user, key, value)
+    
+    db.commit()
+    db.refresh(user)
+    return user
+
+def get_user_profile_stats(db: Session, user_id: int):
+    """Get user profile statistics"""
+    posts_count = db.query(models.Post).filter(models.Post.user_id == user_id).count()
+    
+    # Count communities where user is a member
+    communities_count = db.query(models.CommunityMember).filter(
+        models.CommunityMember.user_id == user_id
+    ).count()
+    
+    return {
+        "posts_count": posts_count,
+        "communities_count": communities_count
+    }
+
 # ============= COMMUNITY CRUD =============
 def get_communities(db: Session, skip: int = 0, limit: int = 100):
     return db.query(models.Community).offset(skip).limit(limit).all()

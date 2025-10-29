@@ -19,6 +19,28 @@ class UserResponse(BaseModel):
     class Config:
         from_attributes = True
 
+class UserUpdate(BaseModel):
+    username: Optional[str] = None
+    bio: Optional[str] = None
+    location: Optional[str] = None
+    profile_picture_url: Optional[str] = None
+
+class UserProfileResponse(BaseModel):
+    id: int
+    username: str
+    email: str
+    role: str
+    verified: bool
+    bio: Optional[str] = None
+    location: Optional[str] = None
+    profile_picture_url: Optional[str] = None
+    created_at: datetime
+    posts_count: int = 0
+    communities_count: int = 0
+    
+    class Config:
+        from_attributes = True
+
 # Post schemas
 class PostCreate(BaseModel):
     title: str

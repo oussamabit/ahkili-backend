@@ -1,35 +1,24 @@
 from sqlalchemy import text
 from app.database import engine
 
-print("🔄 Creating community_members table...")
+print("🔄 Adding new columns to 'users' table...")
 
 sql_script = """
--- ============= COMMUNITY MEMBERS TABLE =============
-CREATE TABLE IF NOT EXISTS community_members (
-    id SERIAL PRIMARY KEY,
-    community_id INTEGER NOT NULL,
-    user_id INTEGER NOT NULL,
-    joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (community_id) REFERENCES communities(id) ON DELETE CASCADE,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-    CONSTRAINT unique_community_member UNIQUE(community_id, user_id)
-);
-
--- Indexes for performance
-CREATE INDEX IF NOT EXISTS idx_community_members_community_id ON community_members(community_id);
-CREATE INDEX IF NOT EXISTS idx_community_members_user_id ON community_members(user_id);
-CREATE INDEX IF NOT EXISTS idx_community_members_composite ON community_members(community_id, user_id);
+-- ============= ALTER USERS TABLE =============
+ALTER TABLE users ADD COLUMN IF NOT EXISTS bio TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS location VARCHAR(100);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_picture_url VARCHAR(500);
 """
 
 try:
     with engine.connect() as conn:
-        # Split the script and execute each statement
+        # Split and execute each SQL statement separately
         for statement in sql_script.split(";"):
             stmt = statement.strip()
             if stmt:
                 conn.execute(text(stmt))
-        conn.commit()
-    print("✅ community_members table created successfully!")
-    
+                conn.commit()
+                print("✅ Columns added successfully to 'users' table!")
+
 except Exception as e:
-    print(f"❌ Error creating community_members table: {e}")
+    print(f"❌ Error updating 'users' table: {e}")

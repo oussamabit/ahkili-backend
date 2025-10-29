@@ -13,6 +13,9 @@ class User(Base):
     email = Column(String(100), unique=True, nullable=False)
     role = Column(String(20), default="user")
     verified = Column(Boolean, default=False)
+    bio = Column(Text, nullable=True)  # ADD THIS
+    location = Column(String(100), nullable=True)  # ADD THIS
+    profile_picture_url = Column(String(500), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     
     # Relationships
