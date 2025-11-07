@@ -1,9 +1,12 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.routes import users, posts, comments, communities, reactions,admin , upload,verification ,comment_reactions , notification
-
+from app.database import Base, engine
+from app import models
 import os
 
+
+Base.metadata.create_all(bind=engine)
 app = FastAPI(title="Ahkili API", version="1.0.0")
 
 # Get allowed origins from environment or use defaults
